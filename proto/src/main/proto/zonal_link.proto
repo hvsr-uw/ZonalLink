@@ -1,0 +1,216 @@
+syntax = "proto3";
+
+package zonallink.v1;
+
+option java_multiple_files = true;
+option java_package = "com.zonallink.proto.v1";
+option java_outer_classname = "ZonalLinkProto";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service ZonalIngestionService {
+  rpc StreamControllerMessages(stream RawZonalMessage) returns (stream IngestionAck);
+  rpc ReportHeartbeat(ControllerHeartbeat) returns (IngestionAck);
+}
+
+service VehicleTelemetryService {
+  rpc SubscribeTelemetry(SubscriptionRequest) returns (stream TelemetryEvent);
+  rpc GetVehicleSnapshot(google.protobuf.Empty) returns (VehicleStateSnapshot);
+  rpc GetDiagnostics(google.protobuf.Empty) returns (DiagnosticsSnapshot);
+  rpc GetHealth(google.protobuf.Empty) returns (SystemHealthSnapshot);
+}
+
+service VehicleCommandService {
+  rpc SubmitCommand(VehicleCommandRequest) returns (VehicleCommandResponse);
+}
+
+enum VehicleDomain {
+  VEHICLE_DOMAIN_UNSPECIFIED = 0;
+  BATTERY = 1;
+  DOORS = 2;
+  HVAC = 3;
+  LIGHTING = 4;
+  CHASSIS = 5;
+  THERMAL = 6;
+  DIAGNOSTICS = 7;
+}
+
+enum VehicleZone {
+  VEHICLE_ZONE_UNSPECIFIED = 0;
+  FRONT_LEFT = 1;
+  FRONT_RIGHT = 2;
+  REAR_LEFT = 3;
+  REAR_RIGHT = 4;
+  CENTER = 5;
+  PACK = 6;
+}
+
+enum ValueQuality {
+  VALUE_QUALITY_UNSPECIFIED = 0;
+  VALID = 1;
+  STALE = 2;
+  ESTIMATED = 3;
+  MISSING = 4;
+  MALFORMED = 5;
+  UNSUPPORTED = 6;
+}
+
+enum ControllerStatus {
+  CONTROLLER_STATUS_UNSPECIFIED = 0;
+  CONTROLLER_UNKNOWN = 1;
+  CONTROLLER_ONLINE = 2;
+  CONTROLLER_DEGRADED = 3;
+  CONTROLLER_OFFLINE = 4;
+}
+
+enum SystemHealthStatus {
+  SYSTEM_HEALTH_STATUS_UNSPECIFIED = 0;
+  SYSTEM_HEALTH_OK = 1;
+  SYSTEM_HEALTH_DEGRADED = 2;
+  SYSTEM_HEALTH_CRITICAL = 3;
+}
+
+enum VehicleCommandType {
+  VEHICLE_COMMAND_TYPE_UNSPECIFIED = 0;
+  SET_HVAC_TARGET_TEMPERATURE = 1;
+  SET_HEADLIGHTS = 2;
+  START_CHARGING = 3;
+  STOP_CHARGING = 4;
+}
+
+enum CommandStatus {
+  COMMAND_STATUS_UNSPECIFIED = 0;
+  COMMAND_ACCEPTED = 1;
+  COMMAND_REJECTED = 2;
+}
+
+message ControllerMetadata {
+  string controller_id = 1;
+  VehicleZone zone = 2;
+  VehicleDomain domain = 3;
+  string software_version = 4;
+  uint32 schema_version = 5;
+}
+
+message RawZonalMessage {
+  string message_id = 1;
+  ControllerMetadata controller = 2;
+  string signal_name = 3;
+  RawSignalValue value = 4;
+  google.protobuf.Timestamp controller_timestamp = 5;
+  uint64 sequence_number = 6;
+}
+
+message RawSignalValue {
+  oneof payload {
+    double number_value = 1;
+    bool bool_value = 2;
+    string string_value = 3;
+  }
+  string unit = 10;
+}
+
+message TelemetryEvent {
+  string event_id = 1;
+  string source_controller_id = 2;
+  VehicleDomain domain = 3;
+  VehicleZone zone = 4;
+  string signal_name = 5;
+  string value = 6;
+  string unit = 7;
+  ValueQuality quality = 8;
+  google.protobuf.Timestamp event_timestamp = 9;
+  google.protobuf.Timestamp received_timestamp = 10;
+  repeated string warnings = 11;
+}
+
+message TelemetryValue {
+  string signal_name = 1;
+  VehicleDomain domain = 2;
+  VehicleZone zone = 3;
+  string value = 4;
+  string unit = 5;
+  ValueQuality quality = 6;
+  google.protobuf.Timestamp last_updated_at = 7;
+  string source_controller_id = 8;
+  google.protobuf.Timestamp stale_at = 9;
+}
+
+message VehicleStateSnapshot {
+  google.protobuf.Timestamp generated_at = 1;
+  repeated TelemetryValue values = 2;
+}
+
+message SubscriptionRequest {
+  repeated VehicleDomain domains = 1;
+  repeated string signal_names = 2;
+  bool include_snapshot_first = 3;
+}
+
+message ControllerHeartbeat {
+  ControllerMetadata controller = 1;
+  google.protobuf.Timestamp sent_at = 2;
+}
+
+message IngestionAck {
+  string message_id = 1;
+  bool accepted = 2;
+  ValueQuality quality = 3;
+  repeated string warnings = 4;
+}
+
+message MetricPoint {
+  string name = 1;
+  double value = 2;
+  map<string, string> tags = 3;
+}
+
+message ControllerHealth {
+  string controller_id = 1;
+  VehicleDomain domain = 2;
+  VehicleZone zone = 3;
+  ControllerStatus status = 4;
+  google.protobuf.Timestamp last_seen_at = 5;
+  uint64 messages_accepted = 6;
+  uint64 messages_rejected = 7;
+  optional uint64 last_sequence_number = 8;
+  uint32 consecutive_failures = 9;
+  string last_error = 10;
+}
+
+message DiagnosticsSnapshot {
+  google.protobuf.Timestamp generated_at = 1;
+  repeated ControllerHealth controllers = 2;
+  repeated MetricPoint metrics = 3;
+}
+
+message SystemHealthSnapshot {
+  SystemHealthStatus status = 1;
+  google.protobuf.Timestamp generated_at = 2;
+  uint32 controller_count = 3;
+  uint32 offline_controllers = 4;
+  uint32 degraded_controllers = 5;
+  uint32 stale_signals = 6;
+  uint64 rejected_messages = 7;
+  repeated string reasons = 8;
+}
+
+message VehicleCommandRequest {
+  string command_id = 1;
+  VehicleCommandType type = 2;
+  google.protobuf.Timestamp requested_at = 3;
+  string client_id = 4;
+  oneof payload {
+    double target_temperature_celsius = 10;
+    bool enabled = 11;
+    google.protobuf.Empty empty = 12;
+  }
+}
+
+message VehicleCommandResponse {
+  string command_id = 1;
+  CommandStatus status = 2;
+  VehicleDomain target_domain = 3;
+  repeated string warnings = 4;
+}
