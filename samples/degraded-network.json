@@ -1,0 +1,20 @@
+{
+  "scenario": "DEGRADED_NETWORK",
+  "description": "Includes valid telemetry, a physically impossible battery value, an unsupported vendor signal, and delayed door telemetry.",
+  "expected": {
+    "acceptedSignals": [
+      "battery.state_of_charge",
+      "chassis.vehicle_speed",
+      "hvac.cabin_temperature",
+      "door.front_left.open"
+    ],
+    "rejectedSignals": [
+      "battery.state_of_charge with value 149%",
+      "battery.unknown_vendor_signal"
+    ],
+    "diagnostics": [
+      "messages.accepted",
+      "messages.rejected"
+    ]
+  }
+}
