@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+.gradle
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build output
+out/
+bin/
+*.class
+
+# Logs
+*.log
+
+# Archives
+*.jar
+*.zip
+*.tar.gz
